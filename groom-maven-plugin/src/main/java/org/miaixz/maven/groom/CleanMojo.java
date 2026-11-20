@@ -65,7 +65,7 @@ public class CleanMojo extends AbstractGroomMojo {
      * Deletes the generated groomed POM file when it exists.
      *
      * @throws MojoExecutionException when Maven cannot execute the goal
-     * @throws MojoFailureException when the groomed POM file cannot be deleted
+     * @throws MojoFailureException   when the groomed POM file cannot be deleted
      */
     public void execute() throws MojoExecutionException, MojoFailureException {
         if (shouldSkip()) {
@@ -93,5 +93,5 @@ public class CleanMojo extends AbstractGroomMojo {
     protected boolean shouldSkipGoal() {
         return skipClean;
     }
-    
+
 }

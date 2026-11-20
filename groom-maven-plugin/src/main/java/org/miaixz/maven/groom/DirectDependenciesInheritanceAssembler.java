@@ -48,20 +48,17 @@ import org.apache.maven.model.merge.MavenModelMerger;
 public class DirectDependenciesInheritanceAssembler extends DefaultInheritanceAssembler {
 
     /**
-     * Model merger used to apply inheritance with Groom-specific dependency behavior.
-     */
-    protected InheritanceModelMerger merger = new DirectDependenciesInheritanceModelMerger();
-
-    /**
      * copied from super implementation because it is private
      */
     private static final String CHILD_DIRECTORY = "child-directory";
-
     /**
      * copied from super implementation because it is private
      */
     private static final String CHILD_DIRECTORY_PROPERTY = "project.directory";
-
+    /**
+     * Model merger used to apply inheritance with Groom-specific dependency behavior.
+     */
+    protected InheritanceModelMerger merger = new DirectDependenciesInheritanceModelMerger();
     /**
      * Dependency inheritance mode selected by the current Groom execution.
      */
@@ -76,9 +73,9 @@ public class DirectDependenciesInheritanceAssembler extends DefaultInheritanceAs
     /**
      * Merges parent model values into the child model.
      *
-     * @param child the child model receiving inherited values
-     * @param parent the parent model providing inherited values
-     * @param request the model building request
+     * @param child    the child model receiving inherited values
+     * @param parent   the parent model providing inherited values
+     * @param request  the model building request
      * @param problems the collector used to report model problems
      */
     @Override
@@ -95,8 +92,8 @@ public class DirectDependenciesInheritanceAssembler extends DefaultInheritanceAs
      * copied from super implementation because it is private though the adjustment
      * is only for compatibility due to the comment with Maven 2.0
      *
-     * @param child the child model
-     * @param parent the parent model
+     * @param child          the child model
+     * @param parent         the parent model
      * @param childDirectory the child directory hint
      * @return the path adjustment used by Maven model inheritance
      */
@@ -161,10 +158,10 @@ public class DirectDependenciesInheritanceAssembler extends DefaultInheritanceAs
         /**
          * Merges a source model into a target model.
          *
-         * @param target the target model receiving values
-         * @param source the source model providing values
+         * @param target         the target model receiving values
+         * @param source         the source model providing values
          * @param sourceDominant whether source values override target values
-         * @param hints merge hints supplied by Maven
+         * @param hints          merge hints supplied by Maven
          */
         @Override
         public void merge(Model target, Model source, boolean sourceDominant, Map<?, ?> hints) {
@@ -174,10 +171,10 @@ public class DirectDependenciesInheritanceAssembler extends DefaultInheritanceAs
         /**
          * Merges model dependencies unless Groom is configured to keep only direct dependencies.
          *
-         * @param target the target model base receiving dependencies
-         * @param source the source model base providing dependencies
+         * @param target         the target model base receiving dependencies
+         * @param source         the source model base providing dependencies
          * @param sourceDominant whether source values override target values
-         * @param context merge context supplied by Maven
+         * @param context        merge context supplied by Maven
          */
         @Override
         protected void mergeModelBase_Dependencies(

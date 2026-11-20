@@ -86,7 +86,8 @@ public class NativeImageMojo extends AbstractGroomMojo {
     private File sourcesJarFile;
 
     /**
-     * Native-image metadata version to consolidate.
+     * Version used to select a compatible metadata baseline. The selected
+     * baseline directory is preserved independently of the project version.
      */
     @Parameter(property = "groom.nativeImage.version", defaultValue = "${project.version}")
     private String nativeImageVersion;

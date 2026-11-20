@@ -52,10 +52,10 @@ public class ExtendedStringSearchModelInterpolator extends StringVisitorModelInt
     /**
      * Creates value sources, optionally from the effective model currently being used as the interpolation origin.
      *
-     * @param model the model being interpolated
+     * @param model      the model being interpolated
      * @param projectDir the project directory used for path interpolation
-     * @param config the model building request
-     * @param problems the collector used to report interpolation problems
+     * @param config     the model building request
+     * @param problems   the collector used to report interpolation problems
      * @return the value sources used by the interpolation process
      */
     @Override
@@ -85,10 +85,10 @@ public class ExtendedStringSearchModelInterpolator extends StringVisitorModelInt
      * Interpolates the supplied model while resolving values from the effective model.
      *
      * @param valueSourceOriginModel the effective model used as the value source
-     * @param model the model whose text values should be interpolated
-     * @param projectDir the project directory used for path interpolation
-     * @param config the model building request
-     * @param problems the collector used to report interpolation problems
+     * @param model                  the model whose text values should be interpolated
+     * @param projectDir             the project directory used for path interpolation
+     * @param config                 the model building request
+     * @param problems               the collector used to report interpolation problems
      * @return the interpolated model
      */
     @Override
@@ -113,5 +113,5 @@ public class ExtendedStringSearchModelInterpolator extends StringVisitorModelInt
             this.valueSourceOriginModel = Optional.empty();
         }
     }
-    
+
 }

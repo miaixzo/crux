@@ -699,6 +699,16 @@ public abstract class PomProperty<V> {
     }
 
     /**
+     * Returns all known POM properties in their stable processing order.
+     *
+     * @return an {@link Collections#unmodifiableList(List) unmodifiable} {@link List} with all {@link PomProperty
+     * properties}.
+     */
+    public static List<PomProperty<?>> getPomProperties() {
+        return POM_PROPERTIES;
+    }
+
+    /**
      * Returns the XML element name represented by this property.
      *
      * @return name
@@ -768,16 +778,6 @@ public abstract class PomProperty<V> {
         if (value != null) {
             set(target, value);
         }
-    }
-
-    /**
-     * Returns all known POM properties in their stable processing order.
-     *
-     * @return an {@link Collections#unmodifiableList(List) unmodifiable} {@link List} with all {@link PomProperty
-     * properties}.
-     */
-    public static List<PomProperty<?>> getPomProperties() {
-        return POM_PROPERTIES;
     }
 
     /**

@@ -28,11 +28,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.jar.Attributes;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
-import java.util.jar.JarOutputStream;
-import java.util.jar.Manifest;
+import java.util.jar.*;
 import java.util.stream.Stream;
 
 /**
@@ -78,10 +74,10 @@ final class NativeImageJarRewriter {
     /**
      * Constructs a new jar rewriter.
      *
-     * @param groupId the project group identifier
+     * @param groupId    the project group identifier
      * @param artifactId the project artifact identifier
-     * @param version the project version
-     * @param vendor the project vendor
+     * @param version    the project version
+     * @param vendor     the project vendor
      */
     NativeImageJarRewriter(String groupId, String artifactId, String version, String vendor) {
         this.groupId = groupId;
@@ -93,7 +89,7 @@ final class NativeImageJarRewriter {
     /**
      * Rewrites a jar file by removing old metadata and adding consolidated native-image metadata.
      *
-     * @param jarFile the jar file to rewrite
+     * @param jarFile              the jar file to rewrite
      * @param nativeImageDirectory the consolidated native-image metadata directory
      * @throws IOException when the jar cannot be rewritten
      */
@@ -113,15 +109,15 @@ final class NativeImageJarRewriter {
     /**
      * Rewrites the source jar into a temporary jar file.
      *
-     * @param jarFile the original jar file
+     * @param jarFile              the original jar file
      * @param nativeImageDirectory the consolidated native-image metadata directory
-     * @param temporaryJar the temporary jar file
+     * @param temporaryJar         the temporary jar file
      * @throws IOException when reading or writing fails
      */
     private void rewriteToTemporaryJar(Path jarFile, Path nativeImageDirectory, Path temporaryJar) throws IOException {
         try (JarFile sourceJar = new JarFile(jarFile.toFile());
-                OutputStream outputStream = Files.newOutputStream(temporaryJar);
-                JarOutputStream targetJar = new JarOutputStream(outputStream, manifest(sourceJar))) {
+             OutputStream outputStream = Files.newOutputStream(temporaryJar);
+             JarOutputStream targetJar = new JarOutputStream(outputStream, manifest(sourceJar))) {
             Set<String> writtenEntries = new HashSet<>();
             writtenEntries.add(MANIFEST_ENTRY);
             copyOriginalEntries(sourceJar, targetJar, writtenEntries);
@@ -156,8 +152,8 @@ final class NativeImageJarRewriter {
     /**
      * Copies original entries that should remain in the rewritten jar.
      *
-     * @param sourceJar the original jar
-     * @param targetJar the rewritten jar
+     * @param sourceJar      the original jar
+     * @param targetJar      the rewritten jar
      * @param writtenEntries entry names already written to the target jar
      * @throws IOException when reading or writing fails
      */
@@ -215,8 +211,8 @@ final class NativeImageJarRewriter {
      * Copies consolidated native-image metadata into the rewritten jar.
      *
      * @param nativeImageDirectory the native-image metadata directory
-     * @param targetJar the rewritten jar
-     * @param writtenEntries entry names already written to the target jar
+     * @param targetJar            the rewritten jar
+     * @param writtenEntries       entry names already written to the target jar
      * @throws IOException when reading or writing fails
      */
     private void copyNativeImageEntries(Path nativeImageDirectory, JarOutputStream targetJar, Set<String> writtenEntries)

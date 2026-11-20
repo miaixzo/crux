@@ -110,27 +110,24 @@ public class CiModelInterpolator implements CiInterpolator {
      * Interpolator used to resolve CI-friendly placeholders.
      */
     private final Interpolator interpolator;
-
+    /**
+     * Maven path translator used for directory-like model values.
+     */
+    private final PathTranslator pathTranslator;
+    /**
+     * Maven URL normalizer used for URL-like model values.
+     */
+    private final UrlNormalizer urlNormalizer;
     /**
      * Recursion guard used while resolving nested expressions.
      */
     private RecursionInterceptor recursionInterceptor;
 
     /**
-     * Maven path translator used for directory-like model values.
-     */
-    private final PathTranslator pathTranslator;
-
-    /**
-     * Maven URL normalizer used for URL-like model values.
-     */
-    private final UrlNormalizer urlNormalizer;
-
-    /**
      * Creates the CI-friendly model interpolator.
      *
      * @param pathTranslator the path translator used for directory-like values
-     * @param urlNormalizer the URL normalizer used for URL-like values
+     * @param urlNormalizer  the URL normalizer used for URL-like values
      */
     @Inject
     public CiModelInterpolator(PathTranslator pathTranslator, UrlNormalizer urlNormalizer) {
@@ -143,10 +140,10 @@ public class CiModelInterpolator implements CiInterpolator {
     /**
      * Interpolates CI-friendly placeholders inside the supplied model.
      *
-     * @param model the model to mutate
+     * @param model      the model to mutate
      * @param projectDir the project directory used for path interpolation
-     * @param config the model building request
-     * @param problems the collector used to report interpolation problems
+     * @param config     the model building request
+     * @param problems   the collector used to report interpolation problems
      * @return the interpolated model
      */
     @Override
@@ -161,10 +158,10 @@ public class CiModelInterpolator implements CiInterpolator {
      * Interpolates CI-friendly placeholders in raw model content.
      *
      * @param modelContent the raw model content
-     * @param model the model used as interpolation context
-     * @param projectDir the project directory used for path interpolation
-     * @param config the model building request
-     * @param problems the collector used to report interpolation problems
+     * @param model        the model used as interpolation context
+     * @param projectDir   the project directory used for path interpolation
+     * @param config       the model building request
+     * @param problems     the collector used to report interpolation problems
      * @return the interpolated model content
      */
     public String interpolateModelContent(
@@ -186,11 +183,11 @@ public class CiModelInterpolator implements CiInterpolator {
     /**
      * Interpolates CI-friendly placeholders inside one model object graph.
      *
-     * @param obj the object graph root to mutate
-     * @param model the model used as interpolation context
+     * @param obj        the object graph root to mutate
+     * @param model      the model used as interpolation context
      * @param projectDir the project directory used for path interpolation
-     * @param config the model building request
-     * @param problems the collector used to report interpolation problems
+     * @param config     the model building request
+     * @param problems   the collector used to report interpolation problems
      */
     protected void interpolateObject(
             Object obj, Model model, File projectDir, ModelBuildingRequest config, ModelProblemCollector problems) {
@@ -207,10 +204,10 @@ public class CiModelInterpolator implements CiInterpolator {
     /**
      * Interpolates one string using the supplied value sources and post processors.
      *
-     * @param src the source text
-     * @param valueSources the value sources used to resolve placeholders
+     * @param src            the source text
+     * @param valueSources   the value sources used to resolve placeholders
      * @param postProcessors post processors applied to resolved values
-     * @param problems the collector used to report interpolation problems
+     * @param problems       the collector used to report interpolation problems
      * @return the interpolated text
      */
     protected String interpolateInternal(
@@ -269,6 +266,147 @@ public class CiModelInterpolator implements CiInterpolator {
     }
 
     /**
+     * Creates value sources used by model interpolation.
+     *
+     * @param model      the model used as interpolation context
+     * @param projectDir the project directory used for path interpolation
+     * @param config     the model building request
+     * @param problems   the collector used to report interpolation problems
+     * @return the value sources used for placeholder resolution
+     */
+    protected List<ValueSource> createValueSources(
+            final Model model,
+            final File projectDir,
+            final ModelBuildingRequest config,
+            final ModelProblemCollector problems) {
+        Properties modelProperties = model.getProperties();
+
+        ValueSource modelValueSource1 = new PrefixedObjectValueSource(PROJECT_PREFIXES, model, false);
+        if (config.getValidationLevel() >= ModelBuildingRequest.VALIDATION_LEVEL_MAVEN_2_0) {
+            modelValueSource1 = new ProblemDetectingValueSource(modelValueSource1, "pom.", "project.", problems);
+        }
+
+        ValueSource modelValueSource2 = new ObjectBasedValueSource(model);
+        if (config.getValidationLevel() >= ModelBuildingRequest.VALIDATION_LEVEL_MAVEN_2_0) {
+            modelValueSource2 = new ProblemDetectingValueSource(modelValueSource2, "", "project.", problems);
+        }
+
+        // NOTE: Order counts here!
+        List<ValueSource> valueSources = new ArrayList<>(9);
+
+        if (projectDir != null) {
+            ValueSource basedirValueSource = new PrefixedValueSourceWrapper(
+                    new AbstractValueSource(false) {
+                        /**
+                         * Resolves the project base directory expression.
+                         *
+                         * @param expression the expression name
+                         * @return the project base directory or {@code null}
+                         */
+                        public Object getValue(String expression) {
+                            if ("basedir".equals(expression)) {
+                                return projectDir.getAbsolutePath();
+                            }
+                            return null;
+                        }
+                    },
+                    PROJECT_PREFIXES,
+                    true);
+            valueSources.add(basedirValueSource);
+
+            ValueSource baseUriValueSource = new PrefixedValueSourceWrapper(
+                    new AbstractValueSource(false) {
+                        /**
+                         * Resolves the project base URI expression.
+                         *
+                         * @param expression the expression name
+                         * @return the project base URI or {@code null}
+                         */
+                        public Object getValue(String expression) {
+                            if ("baseUri".equals(expression)) {
+                                return projectDir.getAbsoluteFile().toURI().toString();
+                            }
+                            return null;
+                        }
+                    },
+                    PROJECT_PREFIXES,
+                    false);
+            valueSources.add(baseUriValueSource);
+            valueSources.add(new BuildTimestampValueSource(config.getBuildStartTime(), modelProperties));
+        }
+
+        valueSources.add(modelValueSource1);
+
+        valueSources.add(new MapBasedValueSource(config.getUserProperties()));
+
+        valueSources.add(new MapBasedValueSource(modelProperties));
+
+        valueSources.add(new MapBasedValueSource(config.getSystemProperties()));
+
+        valueSources.add(new AbstractValueSource(false) {
+            /**
+             * Resolves environment variables from the model building request.
+             *
+             * @param expression the expression name
+             * @return the environment property value or {@code null}
+             */
+            public Object getValue(String expression) {
+                return config.getSystemProperties().getProperty("env." + expression);
+            }
+        });
+
+        valueSources.add(modelValueSource2);
+
+        return valueSources;
+    }
+
+    /**
+     * Creates post processors used after placeholder resolution.
+     *
+     * @param model      the model used as interpolation context
+     * @param projectDir the project directory used for path interpolation
+     * @param config     the model building request
+     * @return the post processors used by interpolation
+     */
+    protected List<? extends InterpolationPostProcessor> createPostProcessors(
+            final Model model, final File projectDir, final ModelBuildingRequest config) {
+        List<InterpolationPostProcessor> processors = new ArrayList<>(2);
+        if (projectDir != null) {
+            processors.add(new PathTranslatingPostProcessor(
+                    PROJECT_PREFIXES, TRANSLATED_PATH_EXPRESSIONS, projectDir, pathTranslator));
+        }
+        processors.add(new UrlNormalizingPostProcessor(urlNormalizer));
+        return processors;
+    }
+
+    /**
+     * Returns the recursion interceptor used by this interpolator.
+     *
+     * @return the recursion interceptor
+     */
+    protected RecursionInterceptor getRecursionInterceptor() {
+        return recursionInterceptor;
+    }
+
+    /**
+     * Configures the recursion interceptor used by this interpolator.
+     *
+     * @param recursionInterceptor the recursion interceptor
+     */
+    protected void setRecursionInterceptor(RecursionInterceptor recursionInterceptor) {
+        this.recursionInterceptor = recursionInterceptor;
+    }
+
+    /**
+     * Returns the underlying expression interpolator.
+     *
+     * @return the underlying expression interpolator
+     */
+    protected final Interpolator getInterpolator() {
+        return interpolator;
+    }
+
+    /**
      * Reflection action that walks an object graph and interpolates string values in place.
      */
     private static final class InterpolateObjectAction implements Runnable {
@@ -301,11 +439,11 @@ public class CiModelInterpolator implements CiInterpolator {
         /**
          * Creates an object graph interpolation action.
          *
-         * @param target the root object to mutate
-         * @param valueSources the value sources used for placeholder resolution
-         * @param postProcessors post processors applied to resolved values
+         * @param target            the root object to mutate
+         * @param valueSources      the value sources used for placeholder resolution
+         * @param postProcessors    post processors applied to resolved values
          * @param modelInterpolator the owning model interpolator
-         * @param problems the collector used to report interpolation problems
+         * @param problems          the collector used to report interpolation problems
          */
         InterpolateObjectAction(
                 Object target,
@@ -322,6 +460,30 @@ public class CiModelInterpolator implements CiInterpolator {
             this.modelInterpolator = modelInterpolator;
 
             this.problems = problems;
+        }
+
+        /**
+         * Interpolates array entries and queues nested object values.
+         *
+         * @param target the array instance to mutate
+         * @param ctx    the current interpolation action
+         */
+        private static void evaluateArray(Object target, InterpolateObjectAction ctx) {
+            int len = Array.getLength(target);
+            for (int i = 0; i < len; i++) {
+                Object value = Array.get(target, i);
+                if (value != null) {
+                    if (String.class == value.getClass()) {
+                        String interpolated = ctx.interpolate((String) value);
+
+                        if (!interpolated.equals(value)) {
+                            Array.set(target, i, interpolated);
+                        }
+                    } else {
+                        ctx.interpolationTargets.add(value);
+                    }
+                }
+            }
         }
 
         /**
@@ -349,7 +511,7 @@ public class CiModelInterpolator implements CiInterpolator {
         /**
          * Traverses the supplied object and its parent classes.
          *
-         * @param cls the class currently being inspected
+         * @param cls    the class currently being inspected
          * @param target the object instance being mutated
          */
         private void traverseObjectWithParents(Class<?> cls, Object target) {
@@ -383,30 +545,6 @@ public class CiModelInterpolator implements CiInterpolator {
         }
 
         /**
-         * Interpolates array entries and queues nested object values.
-         *
-         * @param target the array instance to mutate
-         * @param ctx the current interpolation action
-         */
-        private static void evaluateArray(Object target, InterpolateObjectAction ctx) {
-            int len = Array.getLength(target);
-            for (int i = 0; i < len; i++) {
-                Object value = Array.get(target, i);
-                if (value != null) {
-                    if (String.class == value.getClass()) {
-                        String interpolated = ctx.interpolate((String) value);
-
-                        if (!interpolated.equals(value)) {
-                            Array.set(target, i, interpolated);
-                        }
-                    } else {
-                        ctx.interpolationTargets.add(value);
-                    }
-                }
-            }
-        }
-
-        /**
          * Cached reflection metadata for one class.
          */
         private static class CacheItem {
@@ -425,36 +563,6 @@ public class CiModelInterpolator implements CiInterpolator {
              * Fields that should be inspected or mutated during interpolation.
              */
             private final CacheField[] fields;
-
-            /**
-             * Tests whether a class can be traversed for interpolation.
-             *
-             * @param cls the class to inspect
-             * @return {@code true} when the class can be traversed
-             */
-            private boolean isQualifiedForInterpolation(Class<?> cls) {
-                return !cls.getName().startsWith("java");
-            }
-
-            /**
-             * Tests whether a field can be traversed for interpolation.
-             *
-             * @param field the field to inspect
-             * @param fieldType the field type
-             * @return {@code true} when the field can be traversed
-             */
-            private boolean isQualifiedForInterpolation(Field field, Class<?> fieldType) {
-                if (Map.class.equals(fieldType) && "locations".equals(field.getName())) {
-                    return false;
-                }
-
-                // noinspection SimplifiableIfStatement
-                if (fieldType.isPrimitive()) {
-                    return false;
-                }
-
-                return !"parent".equals(field.getName());
-            }
 
             /**
              * Creates cached interpolation metadata for a class.
@@ -487,9 +595,39 @@ public class CiModelInterpolator implements CiInterpolator {
             }
 
             /**
+             * Tests whether a class can be traversed for interpolation.
+             *
+             * @param cls the class to inspect
+             * @return {@code true} when the class can be traversed
+             */
+            private boolean isQualifiedForInterpolation(Class<?> cls) {
+                return !cls.getName().startsWith("java");
+            }
+
+            /**
+             * Tests whether a field can be traversed for interpolation.
+             *
+             * @param field     the field to inspect
+             * @param fieldType the field type
+             * @return {@code true} when the field can be traversed
+             */
+            private boolean isQualifiedForInterpolation(Field field, Class<?> fieldType) {
+                if (Map.class.equals(fieldType) && "locations".equals(field.getName())) {
+                    return false;
+                }
+
+                // noinspection SimplifiableIfStatement
+                if (fieldType.isPrimitive()) {
+                    return false;
+                }
+
+                return !"parent".equals(field.getName());
+            }
+
+            /**
              * Interpolates all cached fields on the supplied target.
              *
-             * @param target the target object to mutate
+             * @param target                  the target object to mutate
              * @param interpolateObjectAction the active interpolation action
              */
             public void interpolate(Object target, InterpolateObjectAction interpolateObjectAction) {
@@ -530,7 +668,7 @@ public class CiModelInterpolator implements CiInterpolator {
             /**
              * Interpolates this field on the supplied target.
              *
-             * @param target the object instance to mutate
+             * @param target                  the object instance to mutate
              * @param interpolateObjectAction the active interpolation action
              */
             void interpolate(Object target, InterpolateObjectAction interpolateObjectAction) {
@@ -562,7 +700,7 @@ public class CiModelInterpolator implements CiInterpolator {
              * Performs field-type-specific interpolation.
              *
              * @param target the object instance to mutate
-             * @param ctx the active interpolation action
+             * @param ctx    the active interpolation action
              * @throws IllegalAccessException if the field cannot be read or written
              */
             abstract void doInterpolate(Object target, InterpolateObjectAction ctx) throws IllegalAccessException;
@@ -596,7 +734,7 @@ public class CiModelInterpolator implements CiInterpolator {
              * Interpolates a string field on the supplied target.
              *
              * @param target the object instance to mutate
-             * @param ctx the active interpolation action
+             * @param ctx    the active interpolation action
              * @throws IllegalAccessException if the field cannot be read or written
              */
             @Override
@@ -632,7 +770,7 @@ public class CiModelInterpolator implements CiInterpolator {
              * Interpolates supported list entries on the supplied target.
              *
              * @param target the object instance to mutate
-             * @param ctx the active interpolation action
+             * @param ctx    the active interpolation action
              * @throws IllegalAccessException if the field cannot be read or written
              */
             @Override
@@ -690,7 +828,7 @@ public class CiModelInterpolator implements CiInterpolator {
              * Interpolates supported map values on the supplied target.
              *
              * @param target the object instance to mutate
-             * @param ctx the active interpolation action
+             * @param ctx    the active interpolation action
              * @throws IllegalAccessException if the field cannot be read or written
              */
             @Override
@@ -751,7 +889,7 @@ public class CiModelInterpolator implements CiInterpolator {
              * Queues the nested object or interpolates its array values.
              *
              * @param target the object instance to inspect
-             * @param ctx the active interpolation action
+             * @param ctx    the active interpolation action
              * @throws IllegalAccessException if the field cannot be read
              */
             @Override
@@ -769,147 +907,6 @@ public class CiModelInterpolator implements CiInterpolator {
     }
 
     /**
-     * Creates value sources used by model interpolation.
-     *
-     * @param model the model used as interpolation context
-     * @param projectDir the project directory used for path interpolation
-     * @param config the model building request
-     * @param problems the collector used to report interpolation problems
-     * @return the value sources used for placeholder resolution
-     */
-    protected List<ValueSource> createValueSources(
-            final Model model,
-            final File projectDir,
-            final ModelBuildingRequest config,
-            final ModelProblemCollector problems) {
-        Properties modelProperties = model.getProperties();
-
-        ValueSource modelValueSource1 = new PrefixedObjectValueSource(PROJECT_PREFIXES, model, false);
-        if (config.getValidationLevel() >= ModelBuildingRequest.VALIDATION_LEVEL_MAVEN_2_0) {
-            modelValueSource1 = new ProblemDetectingValueSource(modelValueSource1, "pom.", "project.", problems);
-        }
-
-        ValueSource modelValueSource2 = new ObjectBasedValueSource(model);
-        if (config.getValidationLevel() >= ModelBuildingRequest.VALIDATION_LEVEL_MAVEN_2_0) {
-            modelValueSource2 = new ProblemDetectingValueSource(modelValueSource2, "", "project.", problems);
-        }
-
-        // NOTE: Order counts here!
-        List<ValueSource> valueSources = new ArrayList<>(9);
-
-        if (projectDir != null) {
-            ValueSource basedirValueSource = new PrefixedValueSourceWrapper(
-                    new AbstractValueSource(false) {
-                            /**
-                             * Resolves the project base directory expression.
-                             *
-                             * @param expression the expression name
-                             * @return the project base directory or {@code null}
-                             */
-                            public Object getValue(String expression) {
-                            if ("basedir".equals(expression)) {
-                                return projectDir.getAbsolutePath();
-                            }
-                            return null;
-                        }
-                    },
-                    PROJECT_PREFIXES,
-                    true);
-            valueSources.add(basedirValueSource);
-
-            ValueSource baseUriValueSource = new PrefixedValueSourceWrapper(
-                    new AbstractValueSource(false) {
-                            /**
-                             * Resolves the project base URI expression.
-                             *
-                             * @param expression the expression name
-                             * @return the project base URI or {@code null}
-                             */
-                            public Object getValue(String expression) {
-                            if ("baseUri".equals(expression)) {
-                                return projectDir.getAbsoluteFile().toURI().toString();
-                            }
-                            return null;
-                        }
-                    },
-                    PROJECT_PREFIXES,
-                    false);
-            valueSources.add(baseUriValueSource);
-            valueSources.add(new BuildTimestampValueSource(config.getBuildStartTime(), modelProperties));
-        }
-
-        valueSources.add(modelValueSource1);
-
-        valueSources.add(new MapBasedValueSource(config.getUserProperties()));
-
-        valueSources.add(new MapBasedValueSource(modelProperties));
-
-        valueSources.add(new MapBasedValueSource(config.getSystemProperties()));
-
-        valueSources.add(new AbstractValueSource(false) {
-            /**
-             * Resolves environment variables from the model building request.
-             *
-             * @param expression the expression name
-             * @return the environment property value or {@code null}
-             */
-            public Object getValue(String expression) {
-                return config.getSystemProperties().getProperty("env." + expression);
-            }
-        });
-
-        valueSources.add(modelValueSource2);
-
-        return valueSources;
-    }
-
-    /**
-     * Creates post processors used after placeholder resolution.
-     *
-     * @param model the model used as interpolation context
-     * @param projectDir the project directory used for path interpolation
-     * @param config the model building request
-     * @return the post processors used by interpolation
-     */
-    protected List<? extends InterpolationPostProcessor> createPostProcessors(
-            final Model model, final File projectDir, final ModelBuildingRequest config) {
-        List<InterpolationPostProcessor> processors = new ArrayList<>(2);
-        if (projectDir != null) {
-            processors.add(new PathTranslatingPostProcessor(
-                    PROJECT_PREFIXES, TRANSLATED_PATH_EXPRESSIONS, projectDir, pathTranslator));
-        }
-        processors.add(new UrlNormalizingPostProcessor(urlNormalizer));
-        return processors;
-    }
-
-    /**
-     * Returns the recursion interceptor used by this interpolator.
-     *
-     * @return the recursion interceptor
-     */
-    protected RecursionInterceptor getRecursionInterceptor() {
-        return recursionInterceptor;
-    }
-
-    /**
-     * Configures the recursion interceptor used by this interpolator.
-     *
-     * @param recursionInterceptor the recursion interceptor
-     */
-    protected void setRecursionInterceptor(RecursionInterceptor recursionInterceptor) {
-        this.recursionInterceptor = recursionInterceptor;
-    }
-
-    /**
-     * Returns the underlying expression interpolator.
-     *
-     * @return the underlying expression interpolator
-     */
-    protected final Interpolator getInterpolator() {
-        return interpolator;
-    }
-
-    /**
      * Value source that resolves Maven build timestamp expressions.
      */
     static class BuildTimestampValueSource extends AbstractValueSource {
@@ -922,7 +919,7 @@ public class CiModelInterpolator implements CiInterpolator {
         /**
          * Creates a build timestamp value source.
          *
-         * @param startTime the Maven build start time
+         * @param startTime  the Maven build start time
          * @param properties model properties used by timestamp formatting
          */
         BuildTimestampValueSource(Date startTime, Properties properties) {
@@ -972,10 +969,10 @@ public class CiModelInterpolator implements CiInterpolator {
         /**
          * Creates a value source wrapper that warns for deprecated prefixes.
          *
-         * @param valueSource the wrapped value source
+         * @param valueSource  the wrapped value source
          * @param bannedPrefix the deprecated expression prefix
-         * @param newPrefix the replacement expression prefix
-         * @param problems the collector used to report warnings
+         * @param newPrefix    the replacement expression prefix
+         * @param problems     the collector used to report warnings
          */
         ProblemDetectingValueSource(
                 ValueSource valueSource, String bannedPrefix, String newPrefix, ModelProblemCollector problems) {
@@ -1053,8 +1050,8 @@ public class CiModelInterpolator implements CiInterpolator {
          *
          * @param expressionPrefixes the expression prefixes to trim
          * @param unprefixedPathKeys path expression names without prefixes
-         * @param projectDir the base project directory
-         * @param pathTranslator the Maven path translator
+         * @param projectDir         the base project directory
+         * @param pathTranslator     the Maven path translator
          */
         PathTranslatingPostProcessor(
                 List<String> expressionPrefixes,
@@ -1071,7 +1068,7 @@ public class CiModelInterpolator implements CiInterpolator {
          * Translates a path-like value when the expression matches a known path key.
          *
          * @param expression the expression name
-         * @param value the resolved value
+         * @param value      the resolved value
          * @return the translated path value or {@code null}
          */
         public Object execute(String expression, Object value) {
@@ -1110,7 +1107,7 @@ public class CiModelInterpolator implements CiInterpolator {
          * Normalizes a URL-like value when the expression is a known URL field.
          *
          * @param expression the expression name
-         * @param value the resolved value
+         * @param value      the resolved value
          * @return the normalized URL value or {@code null}
          */
         public Object execute(String expression, Object value) {

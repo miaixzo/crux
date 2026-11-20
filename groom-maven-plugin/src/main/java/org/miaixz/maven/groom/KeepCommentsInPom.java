@@ -41,6 +41,22 @@ import org.xml.sax.SAXException;
 class KeepCommentsInPom {
 
     /**
+     * Maven logger used for debug traversal output.
+     */
+    private Log log;
+    /**
+     * The unique path list for an original node; comments are stored via the referenced previous sibling.
+     */
+    private Map<String, Node> commentsPaths;
+
+    /**
+     * Creates an empty comment keeper.
+     */
+    KeepCommentsInPom() {
+        super();
+    }
+
+    /**
      * Create an instance with collected current comments of the passed pom.xml file.
      *
      * @param aLog             the Maven logger.
@@ -53,23 +69,6 @@ class KeepCommentsInPom {
         tempKeepCommentsInPom.setLog(aLog);
         tempKeepCommentsInPom.loadComments(aOriginalPomFile);
         return tempKeepCommentsInPom;
-    }
-
-    /**
-     * Maven logger used for debug traversal output.
-     */
-    private Log log;
-
-    /**
-     * The unique path list for an original node; comments are stored via the referenced previous sibling.
-     */
-    private Map<String, Node> commentsPaths;
-
-    /**
-     * Creates an empty comment keeper.
-     */
-    KeepCommentsInPom() {
-        super();
     }
 
     /**

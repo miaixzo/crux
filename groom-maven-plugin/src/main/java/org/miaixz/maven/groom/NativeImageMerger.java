@@ -32,21 +32,21 @@ import org.apache.maven.plugin.logging.Log;
 
 /**
  * GraalVM Native Image Configuration Consolidator
- *
+ * <p>
  * An enterprise-grade Java implementation for cross-platform consolidation of GraalVM Native Image configuration
  * artifacts. This sophisticated utility dynamically discovers and merges all native-image configuration files from
  * multiple bus-* modules into a unified bus-all distribution package.
- *
+ * <p>
  * Core Capabilities: - Dynamic discovery and consolidation of all configuration file types - Intelligent artifact
  * merging with advanced deduplication algorithms - Adaptive JSON structure preservation and validation - Cross-platform
  * compatibility (Windows, macOS, Linux) - Automatic project metadata detection and version management - Extensible
  * architecture supporting arbitrary configuration types
- *
+ * <p>
  * Architecture: This consolidator follows a modular design pattern with clear separation of concerns: - Discovery
  * Layer: Dynamic project and artifact detection - Processing Layer: Configuration parsing and merging logic -
  * Validation Layer: Structure preservation and integrity checks - Output Layer: Standardized file generation and
  * metadata management
- *
+ * <p>
  * Usage Examples:
  *
  * <pre>
@@ -64,10 +64,9 @@ import org.apache.maven.plugin.logging.Log;
  * }
  * </pre>
  *
- * @see <a href="https://graalvm.org/latest/reference/native-image/BuildConfiguration/">GraalVM Native Image
- *      Configuration</a>
- *
  * @author Kimi Liu
+ * @see <a href="https://graalvm.org/latest/reference/native-image/BuildConfiguration/">GraalVM Native Image
+ * Configuration</a>
  * @since Java 21+
  */
 final class NativeImageMerger {
@@ -146,10 +145,10 @@ final class NativeImageMerger {
      * Constructs a new native-image configuration merger.
      *
      * @param projectRootDirectory the root directory that contains module directories
-     * @param outputBaseDirectory the output directory for the consolidated native-image metadata
-     * @param moduleIdentifier the consolidated module identifier
-     * @param excludedModules the module directory names excluded from scans
-     * @param log the Maven logger used for status output
+     * @param outputBaseDirectory  the output directory for the consolidated native-image metadata
+     * @param moduleIdentifier     the consolidated module identifier
+     * @param excludedModules      the module directory names excluded from scans
+     * @param log                  the Maven logger used for status output
      */
     NativeImageMerger(
             Path projectRootDirectory,
@@ -180,13 +179,13 @@ final class NativeImageMerger {
         boolean includeUnversionedTargetMetadata = targetVersion != null;
 
         for (String sourceVersion : sourceVersions) {
-            String outputVersion = targetVersion == null ? sourceVersion : targetVersion;
+            String outputVersion = sourceVersion;
             log.info("=== Processing metadata version " + sourceVersion + " as " + outputVersion + " ===");
             processVersion(sourceVersion, outputVersion, includeUnversionedTargetMetadata);
             outputVersions.add(outputVersion);
         }
 
-        generateTopIndex(outputVersions, targetVersion);
+        generateTopIndex(outputVersions);
     }
 
     /**
@@ -210,8 +209,8 @@ final class NativeImageMerger {
     /**
      * Processes a specific version by consolidating all configuration files for that version.
      *
-     * @param sourceVersion the metadata version to read
-     * @param outputVersion the project version directory to write
+     * @param sourceVersion                    the metadata version to read
+     * @param outputVersion                    the metadata baseline directory to write
      * @param includeUnversionedTargetMetadata whether direct project metadata should be processed as this version
      * @throws IOException if file operations fail
      */
@@ -249,7 +248,7 @@ final class NativeImageMerger {
     /**
      * Discovers all configuration file types for a specific version.
      *
-     * @param version the version to scan for configuration files
+     * @param version                          the version to scan for configuration files
      * @param includeUnversionedTargetMetadata whether direct project metadata should be included
      * @return a sorted set of configuration file names (alphabetical order)
      * @throws IOException if file system access fails
@@ -260,7 +259,7 @@ final class NativeImageMerger {
         Path projectRoot = projectRootDirectory;
 
         try (java.util.stream.Stream<Path> paths = Files.walk(projectRoot)) {
-            paths.filter(Files::isRegularFile).filter(path -> path.toString().contains("native-image"))
+            paths.filter(Files::isRegularFile).filter(this::isSourceNativeImageResource)
                     .filter(path -> matchesMetadataVersion(path, version, includeUnversionedTargetMetadata))
                     .filter(path -> !shouldExcludeModule(path))
                     .filter(this::isSupportedNativeImageConfigurationFile)
@@ -273,8 +272,8 @@ final class NativeImageMerger {
     /**
      * Locates all configuration files of a specific type for a given version.
      *
-     * @param version the version to search for
-     * @param configFileName the configuration file name to locate
+     * @param version                          the version to search for
+     * @param configFileName                   the configuration file name to locate
      * @param includeUnversionedTargetMetadata whether direct project metadata should be included
      * @return a list of paths to the discovered configuration files
      * @throws IOException if file system access fails
@@ -286,7 +285,7 @@ final class NativeImageMerger {
         Path projectRoot = projectRootDirectory;
 
         try (java.util.stream.Stream<Path> paths = Files.walk(projectRoot)) {
-            paths.filter(Files::isRegularFile).filter(path -> path.toString().contains("native-image"))
+            paths.filter(Files::isRegularFile).filter(this::isSourceNativeImageResource)
                     .filter(path -> matchesMetadataVersion(path, version, includeUnversionedTargetMetadata))
                     .filter(path -> path.getFileName().toString().equals(configFileName))
                     .filter(path -> !shouldExcludeModule(path)).forEach(files::add);
@@ -302,7 +301,7 @@ final class NativeImageMerger {
      * @return true when the path is a native-image JSON configuration file
      */
     private boolean isNativeImageConfigurationFile(Path path) {
-        return path.toString().contains("native-image")
+        return isSourceNativeImageResource(path)
                 && isProjectGroupNativeImagePath(path)
                 && isSupportedNativeImageConfigurationFile(path)
                 && !shouldExcludeModule(path);
@@ -323,8 +322,8 @@ final class NativeImageMerger {
     /**
      * Tests whether a native-image file belongs to the requested metadata version.
      *
-     * @param path the path to evaluate
-     * @param version the metadata version being processed
+     * @param path                             the path to evaluate
+     * @param version                          the metadata version being processed
      * @param includeUnversionedTargetMetadata whether direct project metadata should be included
      * @return true when the path should be included for the requested version
      */
@@ -609,7 +608,7 @@ final class NativeImageMerger {
     /**
      * Appends a boolean property to a JSON object.
      *
-     * @param object the JSON object
+     * @param object       the JSON object
      * @param propertyName the property name
      * @return the JSON object with the boolean property appended
      */
@@ -1102,7 +1101,7 @@ final class NativeImageMerger {
     /**
      * Finds the latest metadata version sharing the target major and minor version.
      *
-     * @param allVersions all discovered metadata versions
+     * @param allVersions   all discovered metadata versions
      * @param targetVersion the requested project version
      * @return compatible metadata version, or empty when none matches
      */
@@ -1119,7 +1118,7 @@ final class NativeImageMerger {
     /**
      * Tests whether a version shares the supplied major and minor components.
      *
-     * @param version the version to inspect
+     * @param version          the version to inspect
      * @param targetMajorMinor the target major and minor components
      * @return true when the version is compatible
      */
@@ -1145,7 +1144,7 @@ final class NativeImageMerger {
             return null;
         }
         try {
-            return new int[] { Integer.parseInt(parts[0]), Integer.parseInt(parts[1]) };
+            return new int[]{Integer.parseInt(parts[0]), Integer.parseInt(parts[1])};
         } catch (NumberFormatException e) {
             return null;
         }
@@ -1154,7 +1153,7 @@ final class NativeImageMerger {
     /**
      * Compares version strings numerically where possible.
      *
-     * @param left the left version
+     * @param left  the left version
      * @param right the right version
      * @return negative, zero, or positive according to ascending version order
      */
@@ -1175,7 +1174,7 @@ final class NativeImageMerger {
     /**
      * Compares version strings in descending order.
      *
-     * @param left the left version
+     * @param left  the left version
      * @param right the right version
      * @return negative, zero, or positive according to descending version order
      */
@@ -1579,16 +1578,15 @@ final class NativeImageMerger {
      * Generates the master metadata index file for the consolidated module.
      *
      * @param processedVersions set of versions that were actually processed
-     * @param targetVersion the target project version requested by the build
      * @throws IOException if file operations fail
      */
-    private void generateTopIndex(Set<String> processedVersions, String targetVersion) throws IOException {
+    private void generateTopIndex(Set<String> processedVersions) throws IOException {
         Set<String> allTestedVersions = collectAllTestedVersions(processedVersions);
         Set<String> allowedPackages = collectAllowedPackages();
         Optional<String> defaultForPattern = collectDefaultForPattern();
 
         // metadata-version should be the latest actually processed version directory
-        String latestVersion = processedVersions.stream().max(Comparator.naturalOrder()).orElse("unknown");
+        String latestVersion = processedVersions.stream().max(this::compareVersions).orElse("unknown");
 
         StringBuilder metadataBuilder = new StringBuilder();
         metadataBuilder.append("[\n");
@@ -1601,7 +1599,7 @@ final class NativeImageMerger {
         }
         metadataBuilder.append("    \"tested-versions\": [\n");
 
-        List<String> sortedVersions = allTestedVersions.stream().sorted(Comparator.naturalOrder()).toList();
+        List<String> sortedVersions = allTestedVersions.stream().sorted(this::compareVersions).toList();
 
         for (int i = 0; i < sortedVersions.size(); i++) {
             metadataBuilder.append("      \"").append(sortedVersions.get(i)).append("\"");
@@ -1665,15 +1663,24 @@ final class NativeImageMerger {
     }
 
     /**
+     * Tests whether a path belongs to a module's authored native-image resources.
+     *
+     * @param path the path to evaluate
+     * @return true for main source resources, excluding build outputs and test resources
+     */
+    private boolean isSourceNativeImageResource(Path path) {
+        String pathText = path.toString().replace('\\', '/');
+        return pathText.contains("/src/main/resources/META-INF/native-image/");
+    }
+
+    /**
      * Tests whether a path points to a source native-image index file.
      *
      * @param path the path to evaluate
      * @return true if the path is a source native-image index file
      */
     private boolean isSourceNativeImageIndex(Path path) {
-        String pathText = path.toString().replace('\\', '/');
-        return pathText.contains("/src/main/resources/META-INF/native-image/")
-                && path.getFileName().toString().equals("index.json");
+        return isSourceNativeImageResource(path) && path.getFileName().toString().equals("index.json");
     }
 
     /**
@@ -1707,7 +1714,7 @@ final class NativeImageMerger {
         try {
             Path projectRoot = projectRootDirectory;
             try (java.util.stream.Stream<Path> paths = Files.walk(projectRoot)) {
-                paths.filter(Files::isRegularFile).filter(path -> path.toString().contains("native-image"))
+                paths.filter(Files::isRegularFile).filter(this::isSourceNativeImageResource)
                         .filter(path -> path.getFileName().toString().equals("index.json"))
                         .filter(this::isProjectGroupNativeImagePath)
                         .filter(path -> !shouldExcludeModule(path)).forEach(path -> {
@@ -1765,7 +1772,7 @@ final class NativeImageMerger {
         Pattern pattern = Pattern.compile("\"tested-versions\"\\s*:\\s*\\[([^\\]]+)\\]");
         Matcher matcher = pattern.matcher(content);
 
-        if (matcher.find()) {
+        while (matcher.find()) {
             String versionsStr = matcher.group(1);
             Pattern versionPattern = Pattern.compile("\"([0-9]+\\.[0-9]+\\.[0-9]+)\"");
             Matcher versionMatcher = versionPattern.matcher(versionsStr);

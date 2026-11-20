@@ -16,10 +16,10 @@ public interface ExtendedModelInterpolator extends ModelInterpolator {
      * Interpolates a model using values from the effective model.
      *
      * @param effectiveModel the effective model used as the value source
-     * @param model the model whose text values should be interpolated
-     * @param projectDir the project directory used for path interpolation
-     * @param config the model building request
-     * @param problems the collector used to report interpolation problems
+     * @param model          the model whose text values should be interpolated
+     * @param projectDir     the project directory used for path interpolation
+     * @param config         the model building request
+     * @param problems       the collector used to report interpolation problems
      * @return the interpolated model
      */
     Model interpolateModel(

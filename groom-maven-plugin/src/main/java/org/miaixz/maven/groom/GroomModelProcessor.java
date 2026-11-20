@@ -69,100 +69,6 @@ public class GroomModelProcessor extends DefaultModelProcessor {
     }
 
     /**
-     * Sets the model locator used by Maven.
-     *
-     * @param locator the model locator
-     * @return this model processor
-     */
-    @Inject
-    @Override
-    public GroomModelProcessor setModelLocator(ModelLocator locator) {
-        super.setModelLocator(locator);
-        return this;
-    }
-
-    /**
-     * Sets the model reader used by Maven.
-     *
-     * @param reader the model reader
-     * @return this model processor
-     */
-    @Inject
-    @Override
-    public GroomModelProcessor setModelReader(ModelReader reader) {
-        super.setModelReader(reader);
-        return this;
-    }
-
-    /**
-     * Reads a model from a POM file and resolves managed version placeholders.
-     *
-     * @param input   the POM file
-     * @param options model reader options
-     * @return the processed model
-     * @throws IOException when the model cannot be read
-     */
-    @Override
-    public Model read(File input, Map<String, ?> options) throws IOException {
-        Model model = super.read(input, options);
-        return resolveModel(model, input == null ? null : input.getParentFile());
-    }
-
-    /**
-     * Reads a model from a reader and resolves managed version placeholders.
-     *
-     * @param input   the reader
-     * @param options model reader options
-     * @return the processed model
-     * @throws IOException when the model cannot be read
-     */
-    @Override
-    public Model read(Reader input, Map<String, ?> options) throws IOException {
-        return resolveModel(super.read(input, options), null);
-    }
-
-    /**
-     * Reads a model from an input stream and resolves managed version placeholders.
-     *
-     * @param input   the input stream
-     * @param options model reader options
-     * @return the processed model
-     * @throws IOException when the model cannot be read
-     */
-    @Override
-    public Model read(InputStream input, Map<String, ?> options) throws IOException {
-        return resolveModel(super.read(input, options), null);
-    }
-
-    /**
-     * Resolves all managed version placeholders in a Maven model.
-     *
-     * @param model         the model to inspect and update.
-     * @param baseDirectory the directory used to locate the repository {@code VERSION} file.
-     * @return the updated model, or {@code null} when the input model is {@code null}.
-     * @throws IOException when the repository version cannot be resolved.
-     */
-    private Model resolveModel(Model model, File baseDirectory) throws IOException {
-        if (model == null || !hasManagedPlaceholder(model)) {
-            return model;
-        }
-        String projectVersion = resolveProjectVersion(baseDirectory);
-        String groomVersion = resolveGroomVersion();
-        model.setVersion(replace(model.getVersion(), projectVersion, groomVersion));
-        Parent parent = model.getParent();
-        if (parent != null) {
-            parent.setVersion(replace(parent.getVersion(), projectVersion, groomVersion));
-        }
-        replaceModelBase(model, projectVersion, groomVersion);
-        replaceBuild(model.getBuild(), projectVersion, groomVersion);
-        for (Profile profile : model.getProfiles()) {
-            replaceModelBase(profile, projectVersion, groomVersion);
-            replaceBuild(profile.getBuild(), projectVersion, groomVersion);
-        }
-        return model;
-    }
-
-    /**
      * Resolves the repository version from the nearest {@code VERSION} file.
      *
      * @param baseDirectory the directory used as the root search point.
@@ -459,6 +365,100 @@ public class GroomModelProcessor extends DefaultModelProcessor {
      */
     private static String replace(String value, String projectVersion, String groomVersion) {
         return GroomVersion.replacePlaceholders(value, projectVersion, groomVersion);
+    }
+
+    /**
+     * Sets the model locator used by Maven.
+     *
+     * @param locator the model locator
+     * @return this model processor
+     */
+    @Inject
+    @Override
+    public GroomModelProcessor setModelLocator(ModelLocator locator) {
+        super.setModelLocator(locator);
+        return this;
+    }
+
+    /**
+     * Sets the model reader used by Maven.
+     *
+     * @param reader the model reader
+     * @return this model processor
+     */
+    @Inject
+    @Override
+    public GroomModelProcessor setModelReader(ModelReader reader) {
+        super.setModelReader(reader);
+        return this;
+    }
+
+    /**
+     * Reads a model from a POM file and resolves managed version placeholders.
+     *
+     * @param input   the POM file
+     * @param options model reader options
+     * @return the processed model
+     * @throws IOException when the model cannot be read
+     */
+    @Override
+    public Model read(File input, Map<String, ?> options) throws IOException {
+        Model model = super.read(input, options);
+        return resolveModel(model, input == null ? null : input.getParentFile());
+    }
+
+    /**
+     * Reads a model from a reader and resolves managed version placeholders.
+     *
+     * @param input   the reader
+     * @param options model reader options
+     * @return the processed model
+     * @throws IOException when the model cannot be read
+     */
+    @Override
+    public Model read(Reader input, Map<String, ?> options) throws IOException {
+        return resolveModel(super.read(input, options), null);
+    }
+
+    /**
+     * Reads a model from an input stream and resolves managed version placeholders.
+     *
+     * @param input   the input stream
+     * @param options model reader options
+     * @return the processed model
+     * @throws IOException when the model cannot be read
+     */
+    @Override
+    public Model read(InputStream input, Map<String, ?> options) throws IOException {
+        return resolveModel(super.read(input, options), null);
+    }
+
+    /**
+     * Resolves all managed version placeholders in a Maven model.
+     *
+     * @param model         the model to inspect and update.
+     * @param baseDirectory the directory used to locate the repository {@code VERSION} file.
+     * @return the updated model, or {@code null} when the input model is {@code null}.
+     * @throws IOException when the repository version cannot be resolved.
+     */
+    private Model resolveModel(Model model, File baseDirectory) throws IOException {
+        if (model == null || !hasManagedPlaceholder(model)) {
+            return model;
+        }
+        String projectVersion = resolveProjectVersion(baseDirectory);
+        String groomVersion = resolveGroomVersion();
+        model.setVersion(replace(model.getVersion(), projectVersion, groomVersion));
+        Parent parent = model.getParent();
+        if (parent != null) {
+            parent.setVersion(replace(parent.getVersion(), projectVersion, groomVersion));
+        }
+        replaceModelBase(model, projectVersion, groomVersion);
+        replaceBuild(model.getBuild(), projectVersion, groomVersion);
+        for (Profile profile : model.getProfiles()) {
+            replaceModelBase(profile, projectVersion, groomVersion);
+            replaceBuild(profile.getBuild(), projectVersion, groomVersion);
+        }
+        return model;
     }
 
 }

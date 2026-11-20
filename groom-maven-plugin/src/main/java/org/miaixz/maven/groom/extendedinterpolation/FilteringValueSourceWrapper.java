@@ -36,7 +36,7 @@ public class FilteringValueSourceWrapper {
     /**
      * Creates a wrapper around one value source.
      *
-     * @param delegate the value source instance to wrap
+     * @param delegate         the value source instance to wrap
      * @param expressionFilter predicate used to decide whether expressions are allowed
      */
     private FilteringValueSourceWrapper(Object delegate, Predicate<String> expressionFilter) {
@@ -61,7 +61,7 @@ public class FilteringValueSourceWrapper {
     /**
      * Wraps a list of value sources with the supplied expression filter.
      *
-     * @param valueSources the value sources to wrap
+     * @param valueSources     the value sources to wrap
      * @param expressionFilter predicate used to decide whether expressions are allowed
      * @return the wrapped value sources
      */
@@ -76,7 +76,7 @@ public class FilteringValueSourceWrapper {
     /**
      * Wraps one value source with the supplied expression filter.
      *
-     * @param valueSource the value source to wrap
+     * @param valueSource      the value source to wrap
      * @param expressionFilter predicate used to decide whether expressions are allowed
      * @return a proxy implementing the value-source interface
      */

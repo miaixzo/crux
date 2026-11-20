@@ -42,44 +42,37 @@ import org.codehaus.plexus.interpolation.ValueSource;
 public class CiInterpolatorImpl implements Interpolator {
 
     /**
-     * Cached interpolation answers keyed by expression.
-     */
-    private final Map existingAnswers = new HashMap();
-
-    /**
-     * Value sources consulted when an expression needs to be resolved.
-     */
-    private final List<ValueSource> valueSources = new ArrayList<>();
-
-    /**
-     * Post processors applied after a value source resolves an expression.
-     */
-    private final List<InterpolationPostProcessor> postProcessors = new ArrayList<>();
-
-    /**
-     * Whether resolved values should remain cached across interpolation calls.
-     */
-    private boolean cacheAnswers = false;
-
-    /**
      * Default opening delimiter for Maven expressions.
      */
     public static final String DEFAULT_START_EXPR = "${";
-
     /**
      * Default closing delimiter for Maven expressions.
      */
     public static final String DEFAULT_END_EXPR = "}";
-
+    /**
+     * Cached interpolation answers keyed by expression.
+     */
+    private final Map existingAnswers = new HashMap();
+    /**
+     * Value sources consulted when an expression needs to be resolved.
+     */
+    private final List<ValueSource> valueSources = new ArrayList<>();
+    /**
+     * Post processors applied after a value source resolves an expression.
+     */
+    private final List<InterpolationPostProcessor> postProcessors = new ArrayList<>();
     /**
      * Opening delimiter used by this interpolator instance.
      */
     private final String startExpr;
-
     /**
      * Closing delimiter used by this interpolator instance.
      */
     private final String endExpr;
+    /**
+     * Whether resolved values should remain cached across interpolation calls.
+     */
+    private boolean cacheAnswers = false;
 
     /**
      * Creates an interpolator that uses Maven's default expression delimiters.
@@ -93,7 +86,7 @@ public class CiInterpolatorImpl implements Interpolator {
      * Creates an interpolator with custom expression delimiters.
      *
      * @param startExpr the expression opening delimiter
-     * @param endExpr the expression closing delimiter
+     * @param endExpr   the expression closing delimiter
      */
     public CiInterpolatorImpl(String startExpr, String endExpr) {
         this.startExpr = startExpr;
@@ -143,7 +136,7 @@ public class CiInterpolatorImpl implements Interpolator {
     /**
      * Interpolates CI-friendly placeholders using a default recursion interceptor.
      *
-     * @param input the source text to interpolate
+     * @param input             the source text to interpolate
      * @param thisPrefixPattern ignored compatibility parameter from the Plexus contract
      * @return the interpolated text
      * @throws InterpolationException if interpolation detects an invalid recursive expression
@@ -156,8 +149,8 @@ public class CiInterpolatorImpl implements Interpolator {
     /**
      * Interpolates CI-friendly placeholders with the supplied recursion interceptor.
      *
-     * @param input the source text to interpolate
-     * @param thisPrefixPattern ignored compatibility parameter from the Plexus contract
+     * @param input                the source text to interpolate
+     * @param thisPrefixPattern    ignored compatibility parameter from the Plexus contract
      * @param recursionInterceptor the recursion interceptor used to detect expression cycles
      * @return the interpolated text
      * @throws InterpolationException if interpolation detects an invalid recursive expression
@@ -184,7 +177,7 @@ public class CiInterpolatorImpl implements Interpolator {
      * Entry point for recursive resolution of an expression and all of its
      * nested expressions.
      *
-     * @param input the source text to interpolate
+     * @param input                the source text to interpolate
      * @param recursionInterceptor the recursion interceptor used to detect expression cycles
      * @return the interpolated text
      * @throws InterpolationException if interpolation detects an invalid recursive expression
@@ -203,9 +196,9 @@ public class CiInterpolatorImpl implements Interpolator {
     /**
      * Interpolates placeholders while tracking expressions that cannot be resolved in the current pass.
      *
-     * @param input the source text to interpolate
+     * @param input                the source text to interpolate
      * @param recursionInterceptor the recursion interceptor used to detect expression cycles
-     * @param unresolvable expressions already known to be unresolved
+     * @param unresolvable         expressions already known to be unresolved
      * @return the interpolated text
      * @throws InterpolationException if interpolation detects an invalid recursive expression
      */

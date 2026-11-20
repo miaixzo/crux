@@ -64,15 +64,6 @@ public class GroomDescriptor {
     }
 
     /**
-     * Returns all explicitly configured element handling values.
-     *
-     * @return an unmodifiable map of element handling values keyed by POM element name
-     */
-    public Map<String, ElementHandling> getName2handlingMap() {
-        return Collections.unmodifiableMap(name2handlingMap);
-    }
-
-    /**
      * The constructor.
      *
      * @param descriptor is the raw {@link Xpp3Dom} from the MOJOs configuration.
@@ -108,6 +99,15 @@ public class GroomDescriptor {
         }
         String value = child.getValue();
         return value == null || value.isBlank() ? ElementHandling.expand : ElementHandling.valueOf(value.trim());
+    }
+
+    /**
+     * Returns all explicitly configured element handling values.
+     *
+     * @return an unmodifiable map of element handling values keyed by POM element name
+     */
+    public Map<String, ElementHandling> getName2handlingMap() {
+        return Collections.unmodifiableMap(name2handlingMap);
     }
 
     /**
@@ -762,5 +762,5 @@ public class GroomDescriptor {
         }
         return true;
     }
-    
+
 }

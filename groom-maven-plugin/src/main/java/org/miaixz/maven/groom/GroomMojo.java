@@ -206,25 +206,25 @@ public class GroomMojo extends AbstractGroomMojo {
             PomProperty.CI_MANAGEMENT,
             PomProperty.DISTRIBUTION_MANAGEMENT,
             PomProperty.PREREQUISITES);
-
+    /**
+     * The {@link ModelInterpolator} used to resolve variables outside CI-friendly-only mode.
+     */
+    private final ExtendedModelInterpolator extendedModelInterpolator = new ExtendedStringSearchModelInterpolator();
     /**
      * The {@link Settings} used to get active profile properties.
      */
     @Parameter(defaultValue = "${settings}", readonly = true, required = true)
     private Settings settings;
-
     /**
      * The {@link MavenSession} used to get user properties.
      */
     @Parameter(defaultValue = "${session}", readonly = true, required = true)
     private MavenSession session;
-
     /**
      * The Maven Project.
      */
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
     private MavenProject project;
-
     /**
      * The flag indicating whether the generated groomed POM should replace the current project POM for later lifecycle
      * goals. The default value is <code>true</code>, so install and deploy goals use the generated groomed POM unless
@@ -232,7 +232,6 @@ public class GroomMojo extends AbstractGroomMojo {
      */
     @Parameter(property = "groom.updatePomFile", defaultValue = "true")
     private boolean updatePomFile;
-
     /**
      * Profiles activated by OS or JDK are valid ways to have different dependencies per environment. However, profiles
      * activated by property of file are less clear. When setting this parameter to <code>true</code>, the latter
@@ -242,21 +241,18 @@ public class GroomMojo extends AbstractGroomMojo {
      */
     @Parameter(defaultValue = "false")
     private Boolean embedBuildProfileDependencies;
-
     /**
      * The {@link MojoExecution} used to get access to the raw configuration of {@link #pomElements} as empty tags are
      * mapped to null.
      */
     @Parameter(defaultValue = "${mojo}", readonly = true, required = true)
     private MojoExecution mojoExecution;
-
     /**
      * The {@link Model} that defines how to handle additional POM elements. Please use <code>groomMode</code> in
      * preference if possible. This parameter is only for ultimate flexibility.
      */
     @Parameter(required = false)
     private GroomDescriptor pomElements;
-
     /**
      * Dictates whether dependency exclusions stanzas should be included in the flattened POM. By default exclusions
      * will be included in the flattened POM but if you wish to omit exclusions stanzas from being present then set
@@ -266,7 +262,6 @@ public class GroomMojo extends AbstractGroomMojo {
      */
     @Parameter(defaultValue = "false", required = false)
     private boolean omitExclusions;
-
     /**
      * Predefined grooming mode used to select a complete {@link GroomDescriptor}.
      * <p>
@@ -277,7 +272,6 @@ public class GroomMojo extends AbstractGroomMojo {
      */
     @Parameter(property = "groom.mode", required = false)
     private GroomMode groomMode;
-
     /**
      * The different possible values for groomDependencyMode:
      * <table border="1" summary="">
@@ -311,7 +305,6 @@ public class GroomMojo extends AbstractGroomMojo {
      */
     @Parameter(property = "groom.dependency.mode", required = false)
     private GroomDependencyMode groomDependencyMode;
-
     /**
      * The core maven model readers/writers are discarding the comments of the pom.xml.
      * By setting keepCommentsInPom to true the current comments are moved to the flattened pom.xml.
@@ -321,7 +314,6 @@ public class GroomMojo extends AbstractGroomMojo {
      */
     @Parameter(property = "groom.dependency.keepComments", required = false, defaultValue = "false")
     private boolean keepCommentsInPom;
-
     /**
      * If {@code true} the groom goal will be skipped.
      *
@@ -329,7 +321,6 @@ public class GroomMojo extends AbstractGroomMojo {
      */
     @Parameter(property = "groom.groom.skip", defaultValue = "false")
     private boolean skipGroom;
-
     /**
      * The default operation to use when no element handling is given. Defaults to <code>flatten</code>.
      *
@@ -337,7 +328,6 @@ public class GroomMojo extends AbstractGroomMojo {
      */
     @Parameter(property = "groom.dependency.defaultOperation", required = false, defaultValue = "flatten")
     private ElementHandling defaultOperation;
-
     /**
      * Applies removable POM element handling to projects packaged as {@code pom}. Set this to {@code false} for
      * internal build parents that must keep their build contract while still sharing the same inherited grooming
@@ -345,46 +335,34 @@ public class GroomMojo extends AbstractGroomMojo {
      */
     @Parameter(property = "groom.applyProjectElementRemovalsToPomPackaging", defaultValue = "true")
     private boolean applyProjectElementRemovalsToPomPackaging;
-
     /**
      * Resolves {@code ${project.version}} expressions in the generated POM to the current Maven project version.
      */
     @Parameter(property = "groom.resolveProjectVersion", defaultValue = "false")
     private boolean resolveProjectVersion;
-
     /**
      * Resolves Maven project expressions in public project metadata while leaving build plugin configuration untouched.
      */
     @Parameter(property = "groom.resolveProjectExpressions", defaultValue = "false")
     private boolean resolveProjectExpressions;
-
     /**
      * Command line override for active {@code build/plugins} handling under {@code pomElements}.
      */
     @Parameter(property = "groom.pomElements.buildPlugins")
     private ElementHandling buildPlugins;
-
     /**
      * Effective setting that removes explicit {@code compile} dependency scopes from the generated POM.
      */
     private boolean effectiveCompileScopeRemoval;
-
     /**
      * Effective setting that removes active {@code build/plugins} from the generated POM.
      */
     private boolean effectiveBuildPluginsRemoval;
-
     /**
      * Inheritance assembler used when building resolved Maven models.
      */
     @Inject
     private DirectDependenciesInheritanceAssembler inheritanceAssembler;
-
-    /**
-     * The {@link ModelInterpolator} used to resolve variables outside CI-friendly-only mode.
-     */
-    private final ExtendedModelInterpolator extendedModelInterpolator = new ExtendedStringSearchModelInterpolator();
-
     /**
      * The {@link ModelInterpolator} used to resolve variables.
      */
@@ -423,10 +401,78 @@ public class GroomMojo extends AbstractGroomMojo {
     }
 
     /**
+     * Creates a flattened {@link List} of {@link Repository} elements where those from super-POM are omitted.
+     *
+     * @param repositories is the {@link List} of {@link Repository} elements. May be <code>null</code>.
+     * @return the flattened {@link List} of {@link Repository} elements or <code>null</code> if <code>null</code> was
+     * given.
+     */
+    protected static List<Repository> createGroomedRepositories(List<Repository> repositories) {
+        if (repositories != null) {
+            List<Repository> flattenedRepositories = new ArrayList<>(repositories.size());
+            for (Repository repo : repositories) {
+                // filter inherited repository section from super POM (see MOJO-2042)...
+                if (!isCentralRepositoryFromSuperPom(repo)) {
+                    flattenedRepositories.add(repo);
+                }
+            }
+            return flattenedRepositories;
+        }
+        return null;
+    }
+
+    /**
+     * Resolves the model encoding, defaulting to UTF-8 when Maven does not specify one.
+     *
+     * @param pom the POM model.
+     * @return the model encoding.
+     */
+    private static String getModelEncoding(Model pom) {
+        // keep original encoding (we could also normalize to UTF-8 here)
+        String modelEncoding = pom.getModelEncoding();
+        if (StringUtils.isEmpty(modelEncoding)) {
+            modelEncoding = "UTF-8";
+        }
+        return modelEncoding;
+    }
+
+    /**
+     * This method determines if the given {@link Repository} section is identical to what is defined from the super
+     * POM.
+     *
+     * @param repo is the {@link Repository} section to check.
+     * @return <code>true</code> if maven central default configuration, <code>false</code> otherwise.
+     */
+    private static boolean isCentralRepositoryFromSuperPom(Repository repo) {
+        if (repo != null) {
+            if ("central".equals(repo.getId())) {
+                RepositoryPolicy snapshots = repo.getSnapshots();
+                return snapshots != null && !snapshots.isEnabled();
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Checks whether the profile activation is driven by build inputs instead of OS or JDK constraints.
+     *
+     * @param activation is the {@link Activation} of a {@link Profile}.
+     * @return <code>true</code> if the given {@link Activation} is build-time driven, <code>false</code> otherwise (if
+     * it is triggered by OS or JDK).
+     */
+    protected static boolean isBuildTimeDriven(Activation activation) {
+
+        if (activation == null) {
+            return true;
+        }
+        return StringUtils.isEmpty(activation.getJdk()) && activation.getOs() == null;
+    }
+
+    /**
      * Executes POM grooming for the current Maven project.
      *
      * @throws MojoExecutionException if POM generation fails
-     * @throws MojoFailureException if Maven detects a logical grooming failure
+     * @throws MojoFailureException   if Maven detects a logical grooming failure
      */
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
@@ -542,12 +588,12 @@ public class GroomMojo extends AbstractGroomMojo {
     /**
      * Writes the given POM {@link Model} to the given {@link File}.
      *
-     * @param pom           the {@link Model} of the POM to write.
-     * @param pomFile       the {@link Path} where to write the given POM will be written to.
-     *                      {@link File#getParentFile()
-     *                      Parent directories} are {@link File#mkdirs() created} automatically.
-     * @param headerComment is the content of a potential XML comment at the top of the XML (after XML declaration and
-     *                      before root tag). May be <code>null</code> if not present and to be omitted in target POM.
+     * @param pom                    the {@link Model} of the POM to write.
+     * @param pomFile                the {@link Path} where to write the given POM will be written to.
+     *                               {@link File#getParentFile()
+     *                               Parent directories} are {@link File#mkdirs() created} automatically.
+     * @param headerComment          is the content of a potential XML comment at the top of the XML (after XML declaration and
+     *                               before root tag). May be <code>null</code> if not present and to be omitted in target POM.
      * @param anOriginalCommentsPath comment restoration helper for original POM comments, or {@code null}
      * @throws MojoExecutionException if the operation failed (e.g. due to an {@link IOException}).
      */
@@ -712,7 +758,7 @@ public class GroomMojo extends AbstractGroomMojo {
     /**
      * Tests whether a top-level POM element is present.
      *
-     * @param data the POM XML to inspect
+     * @param data    the POM XML to inspect
      * @param element the element name to find
      * @return {@code true} when the top-level element exists
      */
@@ -977,8 +1023,8 @@ public class GroomMojo extends AbstractGroomMojo {
     /**
      * Creates an interpolated POM from the original model.
      *
-     * @param buildingRequest the Maven model building request.
-     * @param originalPom the original POM model.
+     * @param buildingRequest  the Maven model building request.
+     * @param originalPom      the original POM model.
      * @param projectDirectory the project directory used for path interpolation.
      * @return the interpolated POM model.
      */
@@ -995,9 +1041,9 @@ public class GroomMojo extends AbstractGroomMojo {
     /**
      * Creates an interpolated POM using the effective model as value-source origin.
      *
-     * @param buildingRequest the Maven model building request.
-     * @param originalPom the original POM model.
-     * @param effectivePom the effective POM model used as interpolation source.
+     * @param buildingRequest  the Maven model building request.
+     * @param originalPom      the original POM model.
+     * @param effectivePom     the effective POM model used as interpolation source.
      * @param projectDirectory the project directory used for path interpolation.
      * @return the extended interpolated POM model.
      */
@@ -1135,8 +1181,8 @@ public class GroomMojo extends AbstractGroomMojo {
     /**
      * Resolves the source model that should provide a property value for the generated POM.
      *
-     * @param descriptor the POM element handling descriptor.
-     * @param property the POM property being copied.
+     * @param descriptor    the POM element handling descriptor.
+     * @param property      the POM property being copied.
      * @param modelsFactory the lazy model factory.
      * @return the source model for the property, or {@code null} when the property is removed.
      * @throws MojoExecutionException when a required source model cannot be created.
@@ -1176,27 +1222,6 @@ public class GroomMojo extends AbstractGroomMojo {
                 || property == PomProperty.BUILD
                 || property == PomProperty.PROFILES
                 || property == PomProperty.MODULES;
-    }
-
-    /**
-     * Creates a flattened {@link List} of {@link Repository} elements where those from super-POM are omitted.
-     *
-     * @param repositories is the {@link List} of {@link Repository} elements. May be <code>null</code>.
-     * @return the flattened {@link List} of {@link Repository} elements or <code>null</code> if <code>null</code> was
-     * given.
-     */
-    protected static List<Repository> createGroomedRepositories(List<Repository> repositories) {
-        if (repositories != null) {
-            List<Repository> flattenedRepositories = new ArrayList<>(repositories.size());
-            for (Repository repo : repositories) {
-                // filter inherited repository section from super POM (see MOJO-2042)...
-                if (!isCentralRepositoryFromSuperPom(repo)) {
-                    flattenedRepositories.add(repo);
-                }
-            }
-            return flattenedRepositories;
-        }
-        return null;
     }
 
     /**
@@ -1346,38 +1371,6 @@ public class GroomMojo extends AbstractGroomMojo {
     }
 
     /**
-     * Resolves the model encoding, defaulting to UTF-8 when Maven does not specify one.
-     *
-     * @param pom the POM model.
-     * @return the model encoding.
-     */
-    private static String getModelEncoding(Model pom) {
-        // keep original encoding (we could also normalize to UTF-8 here)
-        String modelEncoding = pom.getModelEncoding();
-        if (StringUtils.isEmpty(modelEncoding)) {
-            modelEncoding = "UTF-8";
-        }
-        return modelEncoding;
-    }
-
-    /**
-     * This method determines if the given {@link Repository} section is identical to what is defined from the super
-     * POM.
-     *
-     * @param repo is the {@link Repository} section to check.
-     * @return <code>true</code> if maven central default configuration, <code>false</code> otherwise.
-     */
-    private static boolean isCentralRepositoryFromSuperPom(Repository repo) {
-        if (repo != null) {
-            if ("central".equals(repo.getId())) {
-                RepositoryPolicy snapshots = repo.getSnapshots();
-                return snapshots != null && !snapshots.isEnabled();
-            }
-        }
-        return false;
-    }
-
-    /**
      * Creates a model building request that mirrors Maven core profile and repository state.
      *
      * @param pomFile the POM file to build.
@@ -1519,21 +1512,6 @@ public class GroomMojo extends AbstractGroomMojo {
      */
     public boolean isEmbedBuildProfileDependencies() {
         return this.embedBuildProfileDependencies;
-    }
-
-    /**
-     * Checks whether the profile activation is driven by build inputs instead of OS or JDK constraints.
-     *
-     * @param activation is the {@link Activation} of a {@link Profile}.
-     * @return <code>true</code> if the given {@link Activation} is build-time driven, <code>false</code> otherwise (if
-     * it is triggered by OS or JDK).
-     */
-    protected static boolean isBuildTimeDriven(Activation activation) {
-
-        if (activation == null) {
-            return true;
-        }
-        return StringUtils.isEmpty(activation.getJdk()) && activation.getOs() == null;
     }
 
     /**
@@ -2050,8 +2028,8 @@ public class GroomMojo extends AbstractGroomMojo {
         /**
          * Captures the first XML comment found before the root tag.
          *
-         * @param ch the comment character buffer
-         * @param start the start offset in the buffer
+         * @param ch     the comment character buffer
+         * @param start  the start offset in the buffer
          * @param length the number of comment characters
          */
         @Override
@@ -2069,10 +2047,10 @@ public class GroomMojo extends AbstractGroomMojo {
         /**
          * Marks that the root XML element has been reached.
          *
-         * @param uri the namespace URI
+         * @param uri       the namespace URI
          * @param localName the local element name
-         * @param qName the qualified element name
-         * @param attrs the element attributes
+         * @param qName     the qualified element name
+         * @param attrs     the element attributes
          */
         @Override
         public void startElement(String uri, String localName, String qName, Attributes attrs) {

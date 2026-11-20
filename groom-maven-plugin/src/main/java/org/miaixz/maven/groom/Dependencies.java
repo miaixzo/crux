@@ -121,5 +121,5 @@ public class Dependencies {
         List<Dependency> result = new ArrayList<>(this.key2DependencyMap.values());
         return result;
     }
-    
+
 }
